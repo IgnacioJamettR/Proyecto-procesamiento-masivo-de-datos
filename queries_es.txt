@@ -1,0 +1,123 @@
+-- Score promedio por cluster
+
+curl -X GET "http://cm:9200/steam_reviews/_search?pretty" -H "Content-Type: application/json" -d'
+{
+    "size": 0,
+    "aggs": {
+        "promedio_por_cluster": {
+            "terms": {
+                "field": "cluster_id",
+                "size": 10
+            },
+            "aggs": {
+                "puntaje_promedio": {
+                    "avg": {
+                        "field": "review_score"
+                    }
+                }
+            }
+        }
+    }
+}
+'
+
+-- Habilitar field data (preparación)
+curl -X PUT "http://cm:9200/steam_reviews_test/_mapping/_doc?pretty" -H 'Content-Type: application/json' -d'
+{
+  "properties": {
+    "review_text": {
+      "type": "text",
+      "fielddata": true
+    }
+  }
+}
+'
+
+-- Terminos significativos
+
+curl -X GET "http://cm:9200/steam_reviews_test/_search?pretty" -H "Content-Type: application/json" -d'
+{
+  "size": 0,
+  "aggs": {
+    "clusters": {
+      "terms": {
+        "field": "cluster_id",
+        "size": 10
+      },
+      "aggs": {
+        "palabras_clave": {
+          "significant_terms": {
+            "field": "review_text",
+            "size": 10
+          }
+        }
+      }
+    }
+  }
+}
+'
+
+- Palabras más frecuentes por cluster
+
+curl -X GET "http://cm:9200/steam_reviews_test/_search?pretty" -H 'Content-Type: application/json' -d'
+{
+  "size": 0,
+  "aggs": {
+    "por_cluster": {
+      "terms": {
+        "field": "cluster_id",
+        "size": 2
+      },
+      "aggs": {
+        "palabras_mas_frecuentes": {
+          "terms": {
+            "field": "review_text",
+            "size": 20
+          }
+        }
+      }
+    }
+  }
+}
+'
+
+-- Review con score máximo del juego The Witcher 3
+curl -X GET "http://cm:9200/steam_reviews_test/_search?pretty" -H "Content-Type: application/json" -d'
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "app_id": 292030
+          }
+        },
+        {
+          "term": {
+            "review_score": 2952.9
+          }
+        }
+      ]
+    }
+  }
+}
+'
+
+-- Mejores reviews para The Witcher 3
+curl -X GET "http://cm:9200/steam_reviews_test/_search?pretty" -H "Content-Type: application/json" -d'
+{
+  "size": 10,
+  "query": {
+    "term": {
+      "app_id": 292030
+    }
+  },
+  "sort": [
+    {
+      "review_score": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+'
